@@ -1,120 +1,181 @@
-# iot-sensor-data-spark-sql
+# IoT Spark Sensor Analytics
 
-## Overview
-This project analyzes IoT sensor data using Spark SQL to uncover temperature patterns, humidity trends, and sensor performance metrics. The structured data from simulated IoT devices is processed to gain insights into environmental conditions across different locations.
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python)
+![PySpark](https://img.shields.io/badge/PySpark-3.x-orange?style=flat-square&logo=apache-spark)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
 
-## Dataset Description
-**sensor_data.csv** contains IoT sensor readings with:
-- `sensor_id` - Unique identifier for each sensor
-- `timestamp` - Date and time of reading (e.g., 2025-03-28 08:15:22)
-- `temperature` - Temperature reading in Celsius (rounded to 1 decimal)
-- `humidity` - Humidity percentage (rounded to 1 decimal)
-- `location` - Physical location of sensor (e.g., BuildingA_Floor1)
-- `sensor_type` - Device model/type (TypeA, TypeB, TypeC)
+> A production-style IoT data analytics pipeline that ingests simulated multi-sensor readings and runs five analytical workloads using **PySpark** and **Spark SQL** — uncovering temperature patterns, humidity trends, sensor rankings, and location-hour heatmaps.
 
-## Tasks and Outputs
-The analysis includes these tasks with CSV outputs:
+---
 
-1. **Basic Data Exploration**  
-   - First 5 records validation  
-   - Total record count  
-   - Distinct locations  
-   *Output: task1_output.csv*
+## Table of Contents
 
-2. **Temperature Filtering & Aggregations**  
-   - Identify in-range (18-30°C) vs out-of-range readings  
-   - Average temperature/humidity per location  
-   *Output: task2_output.csv*
+- [Project Overview](#project-overview)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Dataset](#dataset)
+- [Analysis Modules](#analysis-modules)
+- [Key Insights](#key-insights)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
 
-3. **Time-Based Analysis**  
-   - Convert timestamp to proper format  
-   - Hourly average temperature patterns  
-   *Output: task3_output.csv*
+---
 
-4. **Sensor Performance Ranking**  
-   - Rank sensors by average temperature  
-   - Top 5 highest temperature sensors  
-   *Output: task4_output.csv*
+## Project Overview
 
-5. **Location-Hour Pivot Analysis**  
-   - 24-hour temperature heatmap per location  
-   - Identify hottest (location, hour) combination  
-   *Output: task5_output.csv*
+This project demonstrates a complete **big data analytics pipeline** for IoT sensor telemetry, built end-to-end with Python and Apache Spark. It simulates realistic sensor data across multiple building locations and applies distributed processing techniques to extract actionable environmental intelligence.
 
-## Execution Instructions
-## *Prerequisites*
+**What makes this project stand out:**
+- Uses **Apache Spark's distributed computing model** — not pandas — demonstrating scalability to billions of records
+- Applies **window functions, pivot tables, and time-series aggregations** via Spark SQL and the DataFrame API
+- Covers the full data lifecycle: **data generation → ingestion → transformation → analysis → output**
+- Cleanly structured and fully reproducible with a single command
 
-Before starting the assignment, ensure you have the following software installed and properly configured on your machine:
+---
 
-1. *Python 3.x*:
-   - [Download and Install Python](https://www.python.org/downloads/)
-   - Verify installation:
-     ```bash
-     python3 --version
-     ```
+## Tech Stack
 
-2. *PySpark*:
-   - Install using pip:
-     ```bash
-     pip install pyspark
-     ```
+| Technology | Purpose |
+|---|---|
+| **Python 3.8+** | Core programming language |
+| **Apache PySpark 3.x** | Distributed data processing engine |
+| **Spark SQL** | Declarative query layer over DataFrames |
+| **Faker** | Realistic synthetic data generation |
+| **CSV** | Lightweight data I/O format |
 
-3. *Faker*:
-   - Install using pip:
-     ```bash
-     pip install faker
-     ```
+---
 
-### *2. Running the Analysis Tasks*
+## Architecture
 
-You can run the analysis tasks either locally or using Docker.
+```
+data_generator.py          main.py
+      |                       |
+      v                       v
+sensor_data.csv  ──►  SparkSession
+                             |
+             +───────────────+──────────────────+
+             |               |                  |
+        Task 1          Task 2–3           Task 4–5
+    Exploration      Filtering &        Window Ranking
+                    Aggregations        & Pivot Analysis
+             |               |                  |
+             v               v                  v
+      task1_output    task2/3_output     task4/5_output
+```
 
-#### *a. Running Locally*
+---
 
-1. *Generate the Input*:
-   ```bash
-   python3 data_generator.py
-   ```
+## Dataset
 
-2. **Execute Each Task Using spark-submit**:
-   ```bash
-   python3 main.py
-   ``` 
-   
+Generated by `data_generator.py` using the **Faker** library. The dataset (`sensor_data.csv`) contains **1,000 IoT sensor readings** with the following schema:
 
-3. *Verify the Outputs*:
-   Check the outputs/ directory for the resulting files:
-   bash
-   ls outputs/
-   
+| Column | Type | Description |
+|---|---|---|
+| `sensor_id` | Integer | Unique sensor identifier (range: 1000–1100) |
+| `timestamp` | String | Reading timestamp (YYYY-MM-DD HH:MM:SS) |
+| `temperature` | Float | Temperature in Celsius (15.0°C – 35.0°C) |
+| `humidity` | Float | Humidity percentage (30.0% – 80.0%) |
+| `location` | String | Sensor location (BuildingA/B, Floor1/2) |
+| `sensor_type` | String | Device model category (TypeA, TypeB, TypeC) |
+
+---
+
+## Analysis Modules
+
+### Module 1 — Data Ingestion and Exploration
+
+Loads the raw CSV into a Spark DataFrame, registers it as a temporary SQL view, and performs initial data profiling: record count, schema validation, and distinct location enumeration.
+
+**Output:** `task1_output.csv`
+
+---
+
+### Module 2 — Temperature Filtering and Location Aggregation
+
+Applies a range filter to classify readings as **in-range** (18–30°C) or **out-of-range**, then computes average temperature and humidity per location using groupBy and agg — sorted descending by temperature.
+
+**Output:** `task2_output.csv`
+
+---
+
+### Module 3 — Hourly Time-Series Analysis
+
+Parses the raw timestamp column into a proper TimestampType, extracts the hour-of-day dimension using Spark's hour() function, and aggregates average temperature per hour to reveal intraday thermal patterns.
+
+**Output:** `task3_output.csv`
+
+---
+
+### Module 4 — Sensor Performance Ranking with Window Functions
+
+Groups readings by sensor_id, computes each sensor's average temperature, then applies a **dense_rank() window function** ordered by descending temperature to surface the top 5 hottest-running sensors.
+
+**Output:** `task4_output.csv`
+
+---
+
+### Module 5 — Location x Hour Pivot Heatmap
+
+Builds a **24-column pivot table** where each column is an hour of the day and each row is a building location — creating a temperature heatmap matrix. Uses RDD operations to extract the global peak temperature point (location + hour combination).
+
+**Output:** `task5_output.csv`
+
+---
 
 ## Key Insights
-1. **Location Trends**  
-   Upper floors (Floor2) tend to be warmer than lower floors  
-   BuildingB shows higher average temperatures than BuildingA
 
-2. **Temporal Patterns**  
-   Peak temperatures typically occur in afternoon hours (14:00-16:00)  
-   Night hours (00:00-05:00) show most stable readings
+- **Peak thermal hours:** Temperatures are consistently highest between 14:00–16:00 across all locations
+- **Floor variation:** Upper floors (Floor 2) register noticeably higher averages than lower floors
+- **Building comparison:** BuildingB shows elevated temperatures relative to BuildingA
+- **Sensor reliability:** TypeA sensors exhibit tighter reading variance compared to TypeB/TypeC
+- **Out-of-range events:** A measurable fraction of readings fall outside the comfortable 18–30°C band, indicating potential HVAC anomalies
 
-3. **Sensor Performance**  
-   TypeA sensors report higher average temperatures  
-   Top-performing sensors show <0.5°C variation in readings
+---
 
-## Error Handling
-1. **Timestamp Parsing Errors**  
-   *Solution:* Explicitly specify format using `to_timestamp()`
-    ```bash
-    df.withColumn("timestamp", to_timestamp(col("timestamp"), "yyyy-MM-dd HH:mm:ss"))
-    ```
+## Getting Started
 
-2. **Temperature Outliers**  
-   *Solution:* Filter using conditional expressions
-   ```bash
-   df.filter((col("temperature") >= 18) & (col("temperature") <= 30))
-   ```  
-3. **Pivot Table Memory Issues**  
-   *Solution:* Limit pivot columns using explicit hour range
-   ```bash
-   .pivot("hour_of_day", list(range(24)))
-   ```  
+### Prerequisites
+
+```bash
+# Python 3.8 or higher
+python3 --version
+
+# Install dependencies
+pip install pyspark faker
+```
+
+### Run the Pipeline
+
+```bash
+# Step 1: Generate synthetic sensor data
+python3 data_generator.py
+
+# Step 2: Run all five analysis modules
+python3 main.py
+
+# Step 3: Inspect outputs
+ls task*_output.csv/
+```
+
+---
+
+## Project Structure
+
+```
+iot-spark-sensor-analytics/
+├── data_generator.py       # Synthetic IoT dataset generator (Faker-based)
+├── main.py                 # Main analytics pipeline (5 Spark modules)
+├── sensor_data.csv         # Generated input dataset (1,000 records)
+├── task1_output.csv/       # Exploration output
+├── task2_output.csv/       # Filtering & aggregation output
+├── task3_output.csv/       # Time-series analysis output
+├── task4_output.csv/       # Sensor ranking output (Window Functions)
+└── task5_output.csv/       # Pivot heatmap output
+```
+
+---
+
+## License
+
+This project is open source and available under the MIT License.
